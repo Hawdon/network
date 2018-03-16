@@ -6,7 +6,7 @@ main( int args_num, char *args[]) {
     int n;
     int sockh, client;
     struct sockaddr_in sockAddress;
-    char buf[MAXLINE];
+    char buf[MAXLINE+1];
 
     struct sockaddr_in clientAddress;
     socklen_t clientAddressLength = sizeof( clientAddress);
@@ -20,10 +20,11 @@ main( int args_num, char *args[]) {
 
     client = Accept( sockh, (SA*)&clientAddress, &clientAddressLength);
     //setbuf(stdout, NULL);
-    bzero( buf, MAXLINE);
+    bzero( buf, MAXLINE+1);
     while((n = Read( client, buf, MAXLINE)) > 0) {
+        buf[n+1] = 0;
         printf("%s", buf);
-        bzero( buf, MAXLINE);
+        bzero( buf, MAXLINE+1);
     }
 
     //if((n = Read( client, buf, MAXLINE)) == 0) {

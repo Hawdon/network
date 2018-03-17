@@ -40,9 +40,9 @@ main( int args_num, char *args[]) {
     while( (n = read( fileno(f), buf, MAXLINE)) > 0) { 
         printf("read %d bytes\n", n);
         Writen( sockfd, buf, n);
+        bzero( buf, MAXLINE);
     }
 
-    Fclose( f);
 
     Shutdown( sockfd, SHUT_WR);
 
@@ -50,6 +50,7 @@ main( int args_num, char *args[]) {
     if( (n = Read( sockfd, buf, MAXLINE)) == 0) {
         logInfo("connection is closed\n");
         close( sockfd);
+        Fclose( f);
     }
 
     return 0;

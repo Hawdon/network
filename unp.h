@@ -47,22 +47,6 @@ struct procParams {
     char fileName[MAXLINE];
 };
 
-struct procParams* 
-getParams( int args_num, char*args[]) {
-    int opt;
-    struct procParams *sp = malloc( sizeof( struct procParams));
-    memset( sp, 0, sizeof(struct procParams));
-    while ( (opt = getopt( args_num, args, "h:p:f:")) != -1) { 
-        switch (opt) {
-            case 'h': strncpy( sp->host, optarg, MAXLINE); break;
-            case 'p': sp->port = atoi( optarg); break;
-            case 'f': strncpy( sp->fileName, optarg, MAXLINE); break;
-            default: fprintf( stderr, "Usage: %s -h hostname -p port -f filename\n", args[0]);
-                     logFatal( "'arg parse");
-        }
-    }
-    return sp;
-}
 
 char * GetTime() {
     struct tm *time_str_tm;
@@ -98,6 +82,27 @@ void logInfo( const char* msg) {
   printf( "%s %s\n", GetTime(), msg);
 }
 
+struct procParams* 
+getParams( int args_num, char*args[]) {
+    int opt;
+    struct procParams *sp;
+    if( args_num < 2) {
+        fprintf( stderr, "Usage: %s -h hostname -p port -f filename\n", args[0]);
+        exit(1);
+    }
+    sp = malloc( sizeof( struct procParams));
+    memset( sp, 0, sizeof(struct procParams));
+    while ( (opt = getopt( args_num, args, "h:p:f:")) != -1) { 
+        switch (opt) {
+            case 'h': strncpy( sp->host, optarg, MAXLINE); break;
+            case 'p': sp->port = atoi( optarg); break;
+            case 'f': strncpy( sp->fileName, optarg, MAXLINE); break;
+            default: fprintf( stderr, "Usage: %s -h hostname -p port -f filename\n", args[0]);
+                     logFatal( "'arg parse");
+        }
+    }
+    return sp;
+}
 /*
  * @arg d (int)- domain
  * @arg t (int) - type

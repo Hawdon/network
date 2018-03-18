@@ -50,21 +50,21 @@ void str_cli(FILE *fp, int sockfd) {
             
 int 
 main(int args_num, char *args[]) {
-    int maxfdp1;
-    fd_set rset;
-    int sockh, consh;
+    int sockh;
+    struct procParams *pptr;
     struct sockaddr_in sockAddr;
-    char buffer[MAXLINE + 1];
 
+    pptr = getParams( args_num, args);
     sockh = Socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    consh = fileno( stdin);
 
-    SetClientAddress(&sockAddr, "10.0.1.101", 1333);
+    SetClientAddress(&sockAddr, pptr->host, pptr->port);
     Connect( sockh, (SA*)&sockAddr, sizeof(sockAddr));
 
     str_cli( stdin, sockh);
 
     Close( sockh);
+    free( pptr);
+
 
     return 0;
 }

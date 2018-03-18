@@ -41,6 +41,28 @@ typedef struct {
     char hostname[MAXLINE];
 } Client;
 
+struct procParams {
+    int port;
+    char host[MAXLINE];
+    char fileName[MAXLINE];
+};
+
+struct procParams* 
+getParams( int args_num, char*args[]) {
+    int opt;
+    struct procParams *sp = malloc( sizeof( struct procParams));
+    memset( sp, 0, sizeof(struct procParams));
+    while ( (opt = getopt( args_num, args, "h:p:f:")) != -1) { 
+        switch (opt) {
+            case 'h': strncpy( sp->host, optarg, MAXLINE); break;
+            case 'p': sp->port = atoi( optarg); break;
+            case 'f': strncpy( sp->fileName, optarg, MAXLINE); break;
+            default: fprintf( stderr, "Usage: %s -h hostname -p port -f filename\n", args[0]);
+                     logFatal( "'arg parse");
+        }
+    }
+    return sp;
+}
 
 char * GetTime() {
     struct tm *time_str_tm;

@@ -5,35 +5,25 @@
 // how to build
 // gcc client.c -o client
 
+
 int
 main( int args_num, char *args[]) {
 
     FILE *f;
     long fileSize;
-    int sockfd, n, port, opt;
+    int sockfd, n;
     char buf[MAXLINE + 1];
-    char host[MAXLINE + 1];
-    char fileName[MAXLINE + 1];
     struct sockaddr_in sockAddress;
+    struct procParams *sp;
 
-
-    while ( (opt = getopt( args_num, args, "h:p:f:")) != -1) { 
-        switch (opt) {
-            case 'h': strncpy( host, optarg, MAXLINE); break;
-            case 'p': port = atoi( optarg); break;
-            case 'f': strncpy( fileName, optarg, MAXLINE); break;
-            default: fprintf( stderr, "Usage: %s -h hostname -p port -f filename\n", args[0]);
-                     logFatal( "'arg parse");
-        }
-    }
-    
-    printf("%s:%d, %s\n", host, port, fileName);
+    sp = getParams( args_num, args);
+    printf("%s:%d, %s\n", sp->host, sp->port, sp->fileName);
     sockfd = Socket( AF_INET, SOCK_STREAM, 0 );
-    SetClientAddress( &sockAddress, host, port);
+    SetClientAddress( &sockAddress, sp->host, sp->port);
     Connect( sockfd, (SA*)&sockAddress, sizeof( sockAddress));
 
     bzero( buf, MAXLINE);
-    f = FileOpen( fileName, "r"); 
+    f = FileOpen( sp->fileName, "r"); 
     //fseek( f, 0L, SEEK_END);
     //fileSize = ftell( f);
 
@@ -52,6 +42,7 @@ main( int args_num, char *args[]) {
         close( sockfd);
         Fclose( f);
     }
+    free( sp);
 
     return 0;
 }

@@ -167,7 +167,7 @@ SetClientAddress( struct sockaddr_in *sp, const char* host, int port) {
   sp->sin_family = AF_INET;
   sp->sin_port = htons( port);   // forgot to do this and got
                                  // connection refuced
-  if ( inet_pton( AF_INET, host, &sp->sin_addr) <= 0)
+  if( inet_pton( AF_INET, host, &sp->sin_addr) <= 0)
       logFatal( "'address");
 }
 
@@ -249,11 +249,17 @@ int Shutdown( int sockfd, int how) {
 }
 
 void Close ( int ch) {
-    int n ;
-    if ( (n = close(ch)) < 0 ) 
+    if ( (close(ch)) < 0 ) 
         logFatal( "'close");
 }
 
+int Select(int nfds, fd_set *readfds, fd_set *writefds,
+                  fd_set *exceptfds, struct timeval *timeout) {
+    int n;
+    if( (n = select( nfds, readfds, writefds, exceptfds, timeout)) < 0)
+        logFatal( "'select");
+    return n;
+}
 
 
 #endif  // __UNP__

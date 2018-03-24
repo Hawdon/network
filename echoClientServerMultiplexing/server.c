@@ -5,71 +5,95 @@
 // how to build:
 // 
 
-struct clientInfo_t {
-  int clienth;
-  size_t clientAddrLen;
-  struct sockaddr_in clientAddr;
-};
-typedef struct clientInfo_t clientInfo;
-
-void* clientThread(void *arg) {
-    size_t size;
-    char host[128];
-    uint16_t port = 0;
-    char buffer[MAXLINE + 1];
-    clientInfo *ci = (clientInfo*)arg;
-    pthread_t tid = pthread_self();
-    int clienth = ci->clienth;
-    struct sockaddr_in clientAddr = ci->clientAddr;
-
-    memset( buffer, 0, MAXLINE);
-
-    if( inet_ntop( clientAddr.sin_family, &clientAddr.sin_addr, host, sizeof(host)-1) == NULL)
-        logFatal( "'inet_ntop");
-    if( (port = ntohs( clientAddr.sin_port)) != 0) 
-        printf(" [thread %lu] got connection from %s:%d\n",tid, host, port); 
-    while ( (size = read( clienth, buffer, MAXLINE)) > 0) {
-        printf( "[%s:%d] %s\n", host, port, buffer);
-        Write( clienth, buffer, MAXLINE);
-        memset( buffer, 0, MAXLINE);
-    }
-    Close( clienth);
-    free( ci);
-    pthread_exit( 0 );
-}
-
 int 
 main(int args_num, char *args[]) {
-    int sockh, clienth;
-    struct sockaddr_in sockAddr, clientAddr;
-    socklen_t clientAddrLen = sizeof( clientAddr);
-    const char exitSeq[] = "\\";
+    int nready,     /* select output*/
+        sockfd,
+        connfd,
+        listenfd,
+        i, maxi, maxfd;
+    unsigned int recvBytes[FD_SETSIZE];
+    ssize_t n;
+    socklen_t clilen;
+    char buf[MAXLINE];
+    fd_set rset, allset;
+    int clients[FD_SETSIZE];
+
+    struct sockaddr_in servaddr, cliaddr;
+
+    long maxOpenHandles = sysconf(_SC_OPEN_MAX);
 
     printf( "************************************************\n");
-    printf( "*               SERVER [%lu]                  *\n", getpid());
+    printf( "*               SERVER [%lu]                   *\n", getpid());
+    printf( "*               (max open handles %ld)         *\n", maxOpenHandles);
     printf( "************************************************\n");
 
-    sockh = Socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    SetServerAddress( &sockAddr, 1333);
-    Bind( sockh, (SA*)&sockAddr, sizeof( sockAddr));
-    Listen( sockh, LISTENQ);                                 
+    listenfd = Socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+    bzero( &servaddr, sizeof(servaddr));
+    SetServerAddress( &servaddr, 1333);
 
-    while( 1 ) {
-        int err;
-        pthread_t tid;
-        clienth = Accept( sockh, (SA*)&clientAddr, &clientAddrLen);
-        clientInfo *ci = (clientInfo*)malloc( sizeof( clientInfo));
-        memset( ci, 0, sizeof( clientInfo));
-        ci->clienth = clienth;
-        ci->clientAddr = clientAddr;
-        ci->clientAddrLen = clientAddrLen;
-        if( (err = pthread_create( &tid, NULL, clientThread, (void*)ci)) != 0) {
-            logFatal( "'new_thread");  
+    Bind( listenfd, (SA*)&servaddr, sizeof( servaddr));
+
+    Listen( listenfd, LISTENQ);                                 
+
+    /* initialization */
+    maxi = -1;
+    maxfd = listenfd;
+    for( i = 0; i < FD_SETSIZE; i++) {
+        clients[i] = -1;
+        recvBytes[i] = 0;
+    }
+    FD_ZERO( &allset);
+    FD_SET( listenfd, &allset);
+    while ( 1 ) { 
+        rset = allset;
+        nready = Select( maxfd + 1, &rset, NULL, NULL, NULL);
+
+        if( FD_ISSET( listenfd, &rset)) {
+            clilen = sizeof( cliaddr);
+            connfd = Accept( listenfd, (SA*)&cliaddr, &clilen);
+
+            for( i = 0; i < FD_SETSIZE; i++) {
+                if( clients[i] < 0) {
+                    clients[i] = connfd;
+                    break;
+                }
+            }
+            if( i == FD_SETSIZE)
+                logFatal( "'too many clients");
+
+            FD_SET( connfd, &allset);
+            if( connfd > maxfd)
+                maxfd = connfd; // max file descriptor for select
+            if( i > maxi)
+                maxi = i;       // max index in client array
+
+            if( --nready <= 0)
+                continue;       // don't process further if no other fds are ready
+        }
+
+        for( i = 0; i <= maxi; i++) {
+            if( (sockfd = clients[i]) < 0)
+                continue;
+            if( FD_ISSET( sockfd, &rset)) {
+                if( (n = Read( sockfd, buf, MAXLINE)) == 0) { // FIN message
+                    Close( sockfd);
+                    FD_CLR( sockfd, &allset);
+                    clients[i] = -1;
+                    printf(" client %d (%d) received %d disconnected\n",i, sockfd, recvBytes[sockfd]);
+                    recvBytes[sockfd] = 0;
+                } else  {
+                    //printf( "Read from client %d %d bytes\n", sockfd, n);
+                    recvBytes[sockfd]+= n;
+                    Writen( sockfd, buf, n);
+                    // Writen for echo function
+                }
+                if( --nready <= 0)
+                    break;
+            }
         }
     }
-
-
     return 0;
 }
 
